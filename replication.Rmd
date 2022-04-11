@@ -1,0 +1,383 @@
+---
+output: rmarkdown::pdf_document
+mainfont: Times New Roman
+fontsize: 10pt
+---
+## Housing, Health, and Happiness 
+
+Group 13: Wei Deng, Meera Duggal
+
+The paper we are going to replicate is the Housing, Health, and Happiness paper from the American Economic Association, authored by Cattaneo, Galiani, et. al. The purpose of this paper is to investigate the impact of a welfare program in Mexico has on the health and happiness of its participants. Specifically, the program replaces dirt floors in households with concrete. The stated objective of the Piso Firme was to improve the living standards, and especially health standards, of vulnerable groups that live in high-density, low-income neighborhoods. The researchers focus on two cities: Lerdo (control) and Torreón (treatment). These two cities were chosen because, although they are in separate states, they occupy the same urban area, which means they are basically identical in their cultural and natural environments. Thus, by picking these two areas the researchers try to limit the bias between the two areas. 
+
+The researchers’ primary question is if the intervention of the Piso Firme program had effects on the participants’ health and happiness. The factors that the researchers used to investigate this impact on residents included rate of parasitic infections, diarrhea, anemia, child cognitive development, respiratory diseases, and self-reported depression/stress levels, among others. The researchers employ a difference-in-difference approach to measuring the causal impact of the program, fitting three linear regression models to predict a number of different outcomes. 
+
+The researchers concluded that the Piso Firma program was effective in reducing incidence of intestinal parasites, which improved the cognitive development of children. They also suggest that anti-poverty intervention programs such as Piso Firma can result in major improvements in child health and development.
+
+
+### Data Description
+
+The authors of this paper utilized two main dataframes for their analysis: household dataframe and individual dataframe. 
+
+The household dataframe contains information at the household level from both the 2000 Mexican census and the 2005 survey. This data has 78 different variables, each with an indicator of treatment group (0 for control and 1 for treatment). The census data is from 2000, which is before the cement floors were installed. The survey data is from 2005 which is after the treatment. These two data sets combined indicates the different census blocks and their coordinates as well as the characteristics of these census blocks such as # of people, rooms, poverty etc. 
+
+The individual dataframe contains information at the individual level for the 2005 survey. This dataset has 89 variables, all of which is from 2005. As opposed to the household data the different variables describe different individual characteristics in the household. This is important because they wanted to gather happiness and stress levels from the moms and cognitive assessment and parasitic infection levels from the children. With this they will be able to conclude if their treatment was effective. This data also includes the coordinates of the household as well as survey data for the mother, father, and child. This describes things such as diarrhea, anemia, and other illnesses. They also include different dummy variables that they are going to include in their regression model. These two datasets, household_df and individual_df, constitute the basis for the analysis of this paper. 
+
+The authors of this paper first wanted to ensure that there was a balance between the control and treatment groups. By comparing the means of 22 variables (that summarize demographics structure, housing characteristics, assets, poverty and education of household members) for both the control and treatment group they ensure that the two groups are balanced. They find that there are no significant differences in the two groups and thus say that their samples are well balanced before the welfare program started. 
+
+### Summary Statistics 
+
+Here we recreate the summary statistics table that the researchers use to investigate the balance between the treatment and control households for 27 different independent variables. These values are taken from 2005, after treatment. These variables are grouped into different categories: household demographic, children's characteristics, housing characteristics, hygienic environment, economic variables, and benefits from public social programs. These variables were chosen because they are thought to be unaffected by the treatment. 
+
+```{r, include=F}
+library(haven)
+library(RStata)
+library(tidyverse)
+library(lemon)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+knit_print.data.frame <- lemon_print
+
+# read in the data
+household_df <- read_dta('PisoFirme_AEJPol-20070024_household.dta')
+individual_df <- read_dta('PisoFirme_AEJPol-20070024_individual.dta')
+```
+
+```{r, echo=F}
+#treatment is for Torreon 
+household_treatment <- household_df %>% filter(dpisofirme == 1)
+
+#control group is for Durango 
+household_control <- household_df %>% filter(dpisofirme == 0)
+
+household_control_tbl3 <- household_control %>% summarise(S_HHpeople, S_headage, S_headeduc, S_spouseage, S_spouseeduc)
+
+#taking the column means for the control variables 
+mean_control <- colMeans(household_control_tbl3, na.rm = TRUE)
+
+observations_control <- colSums(!is.na(household_control_tbl3))
+
+sd_control <- sapply(household_control_tbl3,function(x) sd(x, na.rm = TRUE)) /sqrt(observations_control)
+
+#treatment group 
+
+household_treatment_tbl3 <- household_treatment %>% summarise(S_HHpeople, S_headage, S_headeduc, S_spouseage, S_spouseeduc)
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(household_treatment_tbl3, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(household_treatment_tbl3))
+
+sd_treatment <- sapply(household_treatment_tbl3,function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Number of household members", "Head of household's age", 
+               "Head of household's years of schooling", "Spouse's age", 
+               "Spouse's years of schooling")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#household demographics dataframe 
+kbl(table_3, caption = "Household demographics", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+```{r,echo=F}
+#for the next section of varibales they then go to the individual characteristics of the children 
+
+#treatment is for Torreon 
+individual <- individual_df %>% filter(S_age < 6) %>% summarise(dpisofirme, S_age, S_gender, S_childma, S_childmaage,
+                                          S_childmaeduc, S_childpa, S_childpaage, S_childpaeduc)
+
+individual_treatment <- individual %>% filter(dpisofirme == 1)
+individual_treatment <- individual_treatment[-1]
+
+#control group is for Durango 
+individual_control <- individual %>% filter(dpisofirme == 0) 
+individual_control <- individual_control[-1]
+
+
+#taking the column means for the control variables 
+mean_control <- colMeans(individual_control, na.rm = TRUE)
+observations_control <- colSums(!is.na(individual_control))
+
+sd_control <- sapply(individual_control,function(x)sd(x, na.rm = TRUE))/sqrt(observations_control)
+
+
+
+
+#treatment group 
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(individual_treatment, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(individual_treatment))
+
+sd_treatment <- sapply(individual_treatment, function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Age", "Male(=1)", "Mother of at least one child in household present (=1)",
+               "Mother's age (if present)", "Mother's years of schooling (if present)",
+               "Father of at least one child in household present (=1)", "Father's age (if present)",
+               "Father's years of schooling (if present)")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#this is characteristics of children ages 0-5 
+kbl(table_3, caption = "Characteristics of children aged 0-5:", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+```{r, echo=F}
+
+#treatment is for Torreon 
+housing <- household_df %>% summarise(dpisofirme, S_rooms, S_waterland, S_waterhouse, S_electricity,
+                                                          S_cementfloor2000)
+
+housing_treatment <- housing %>% filter(dpisofirme == 1)
+housing_treatment <- housing_treatment[-1]
+
+#control group is for Durango 
+housing_control <- housing %>% filter(dpisofirme == 0)
+housing_control <- housing_control[-1]
+
+
+#taking the column means for the control variables 
+mean_control <- colMeans(housing_control, na.rm = TRUE)
+
+observations_control <- colSums(!is.na(housing_control))
+
+sd_control <- sapply(housing_control, function(x) sd(x, na.rm = TRUE)) /sqrt(observations_control)
+
+#treatment group 
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(housing_treatment, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(housing_treatment))
+
+sd_treatment <- sapply(housing_treatment, function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Number of rooms", "Water connection (=1)", "Water connection inside the house (=1)",
+               "Electricity (=1)", "Share of rooms with cement floors in 2000")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#household demographics dataframe 
+kbl(table_3, caption = "Housing characteristics:", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+
+```{r, echo=F}
+
+#treatment is for Torreon 
+housing <- household_df %>% summarise(dpisofirme, S_hasanimals, S_animalsinside,
+                                      S_garbage, S_washhands)
+
+housing_treatment <- housing %>% filter(dpisofirme == 1)
+housing_treatment <- housing_treatment[-1]
+
+#control group is for Durango 
+housing_control <- housing %>% filter(dpisofirme == 0)
+housing_control <- housing_control[-1]
+
+
+#taking the column means for the control variables 
+mean_control <- colMeans(housing_control, na.rm = TRUE)
+
+observations_control <- colSums(!is.na(housing_control))
+
+sd_control <- sapply(housing_control, function(x) sd(x, na.rm = TRUE)) /sqrt(observations_control)
+
+#treatment group 
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(housing_treatment, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(housing_treatment))
+
+sd_treatment <- sapply(housing_treatment, function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Household has animals on land(=1)", "Animals allowed to enter the house (=1)",
+               "Uses garbage collection service (=1)", "Number of times respondent washed hands the day before")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#household demographics dataframe 
+kbl(table_3, caption = "Hygienic environment:", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+
+```{r, echo=F}
+
+#treatment is for Torreon 
+housing <- household_df %>% summarise(dpisofirme, S_incomepc, S_assetspc)
+
+housing_treatment <- housing %>% filter(dpisofirme == 1)
+housing_treatment <- housing_treatment[-1]
+
+#control group is for Durango 
+housing_control <- housing %>% filter(dpisofirme == 0)
+housing_control <- housing_control[-1]
+
+
+#taking the column means for the control variables 
+mean_control <- colMeans(housing_control, na.rm = TRUE)
+
+observations_control <- colSums(!is.na(housing_control))
+
+sd_control <- sapply(housing_control, function(x) sd(x, na.rm = TRUE)) /sqrt(observations_control)
+
+#treatment group 
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(housing_treatment, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(housing_treatment))
+
+sd_treatment <- sapply(housing_treatment, function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Total household income per capita", "Total value of household assets per capita")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#household demographics dataframe 
+kbl(table_3, caption = "Economic characteristics:", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+```{r, echo=F}
+
+#treatment is for Torreon 
+housing <- household_df %>% summarise(dpisofirme, S_cashtransfers, S_milkprogram, S_foodprogram)
+
+housing_treatment <- housing %>% filter(dpisofirme == 1)
+housing_treatment <- housing_treatment[-1]
+
+#control group is for Durango 
+housing_control <- housing %>% filter(dpisofirme == 0)
+housing_control <- housing_control[-1]
+
+
+#taking the column means for the control variables 
+mean_control <- colMeans(housing_control, na.rm = TRUE)
+
+observations_control <- colSums(!is.na(housing_control))
+
+sd_control <- sapply(housing_control, function(x) sd(x, na.rm = TRUE)) /sqrt(observations_control)
+
+#treatment group 
+
+#taking the column means for the treatment variables 
+mean_treatment <- colMeans(housing_treatment, na.rm = TRUE)
+
+observations_treatment<- colSums(!is.na(housing_treatment))
+
+sd_treatment <- sapply(housing_treatment, function(x)sd(x, na.rm = TRUE))/sqrt(observations_treatment)
+
+
+
+
+#total dataframe for the summary statistic data frame 
+variables <- c("Transfers per capita from government programs", "Household beneficiary of government milk supplement program (=1)", "Household beneficiary of government food program (=1)")
+
+
+mean_difference <- (mean_treatment - mean_control)
+
+
+table_3 <- data.frame(variables, observations_treatment, formatC(mean_treatment, digits = 3, format = "f"),
+                      formatC(sd_treatment, digits = 3, format = "f"),
+                      observations_control, formatC(mean_control, digits = 3, format = "f"), 
+                      formatC(sd_control, digits = 3, format = "f"),
+                      formatC(mean_difference, digits = 3, format = "f"))
+
+colnames(table_3) <- c("Variable", "Observations treatment", "Mean treatment", "Standard error treatment","Observations control", "Mean control", "Standard error control","Mean difference")
+rownames(table_3) <- NULL
+
+
+#household demographics dataframe 
+kbl(table_3, caption = "Public Social programs:", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+
+```
+
+From these tables we can see that household, hygienic environments, socioeconomic status and households that benefit from public programs are balanced between our control and treatment groups. One thing to note is that there is a larger proportion of males in the control group compared to the that of the treatment group. Also, the proportion of children whose father is present in the treatment group is higher than that of the control group. Thus, these variables will be controlled for when we further our analysis. 
