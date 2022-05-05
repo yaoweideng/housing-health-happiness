@@ -4,6 +4,7 @@ author: "Meera Duggal"
 date: "5/4/2022"
 output: pdf_document 
 ---
+# CODE FOR TABLE 4, 5, 6 
 
 ```{r}
 library(haven)
@@ -170,9 +171,9 @@ coef_over_mean <- 100*(coefs / ctrl_grp_mean)
 
 
 ```
+
+
 #### TABLE 5
-
-
 S_parcount S_diarrhea S_anemia S_mccdts S_pbdypct S_haz S_whz;
 ## MODEL 1
 ```{r}
@@ -256,7 +257,7 @@ HH_social  S_cashtransfers S_milkprogram S_foodprogram S_seguropopular;
 coefs <- c()
 cl_se <- c()
 
-for(i in 1:5){
+for(i in 1:7){
   #intercept 
   model1 <- lm(dependent_vars[,i] ~ individual_X$dpisofirme + 
                  individual_X$S_HHpeople + individual_X$S_rooms + 
@@ -264,13 +265,118 @@ for(i in 1:5){
                  individual_X$S_childma + individual_X$S_childmaage + 
                  individual_X$S_childmaeduc + 
                  individual_X$S_childpa + individual_X$S_childpaage + 
-                 individual_X$S_childpaeduc + individual_X$S_waterland + individual_X$S_waterhouse + individual_X$S_electricity + individual_X$S_hasanimals + individual_X$S_animalsinside + individual_X$S_garbage + individual_X$S_washhands + individual_X$S_cashtransfers + individual_X$S_milkprogram 
+                 individual_X$S_childpaeduc + individual_X$S_waterland + 
+                 individual_X$S_waterhouse + individual_X$S_electricity + 
+                 individual_X$S_hasanimals + individual_X$S_animalsinside + 
+                 individual_X$S_garbage + individual_X$S_washhands + 
+                 individual_X$S_cashtransfers + individual_X$S_milkprogram 
                + individual_X$S_foodprogram + individual_X$S_seguropopular)
 
 
   #clustered standard error 
   #value in the brackets 
   cl_se[i] <-coeftest(model1, vcov=vcovCL, cluster= individual_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model1$coefficients[2]
+  
+  
+}
+
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+
+
+```
+
+# Table 6 !!! 
+
+### MODEL 1
+```{r}
+dependent_vars <- cbind(household_Y$S_satisfloor, household_Y$S_satishouse, household_Y$S_satislife, household_Y$S_cesds, household_Y$S_pss)
+
+ctrl_grp_mean <- c()
+stds <- c()
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model1 <- lm(dependent_vars[,i] ~ household_X$dpisofirme)
+  
+  #first column
+  ctrl_grp_mean <- append(ctrl_grp_mean, summary(model1)$coefficients[1,1])
+  
+  #second value in first column 
+  stds[i] <- summary(model1)$coefficients[1,2] * sqrt(nrow(household_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <-coeftest(model1, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model1$coefficients[2]
+  
+  
+}
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+
+
+```
+
+### MODEL 2 
+
+```{r}
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model1 <- lm(dependent_vars[,i] ~ household_X$dpisofirme + household_X$S_HHpeople + household_X$S_headage + 
+                 household_X$S_spouseage + household_X$S_headeduc + household_X$S_spouseeduc + household_X$S_dem1 + household_X$S_dem2 + 
+                 household_X$S_dem3 + household_X$S_dem4 + household_X$S_dem5 + household_X$S_dem6 + household_X$S_dem7 + household_X$S_dem8 + 
+                 household_X$S_waterland + household_X$S_waterhouse + household_X$S_electricity + household_X$S_hasanimals + 
+                 household_X$S_animalsinside + household_X$S_garbage + household_X$S_washhands)
+
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <-coeftest(model1, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model1$coefficients[2]
+  
+  
+}
+
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+```
+
+
+MODEL 3 !!!
+
+```{r}
+
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model1 <- lm(dependent_vars[,i] ~ household_X$dpisofirme + household_X$S_HHpeople + household_X$S_headage + 
+                 household_X$S_spouseage + household_X$S_headeduc + household_X$S_spouseeduc + household_X$S_dem1 + household_X$S_dem2 + 
+                 household_X$S_dem3 + household_X$S_dem4 + household_X$S_dem5 + household_X$S_dem6 + household_X$S_dem7 + household_X$S_dem8 + 
+                 household_X$S_waterland + household_X$S_waterhouse + household_X$S_electricity + household_X$S_hasanimals + 
+                 household_X$S_animalsinside + household_X$S_garbage + household_X$S_washhands + household_X$S_cashtransfers +
+                 household_X$S_milkprogram + household_X$S_foodprogram + household_X$S_seguropopular
+               , data = household_X)
+
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <-coeftest(model1, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
 
   #coefficient for dpisofirme 
   coefs[i] <-  model1$coefficients[2]
