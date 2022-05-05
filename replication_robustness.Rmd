@@ -1,0 +1,308 @@
+---
+output: pdf_document
+---
+
+```{r}
+library(haven)
+library(RStata)
+library(tidyverse)
+library(lemon)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(lmtest)
+library(sandwich)
+knit_print.data.frame <- lemon_print
+
+# read in the data
+household_df <- read_dta('PisoFirme_AEJPol-20070024_household.dta')
+individual_df <- read_dta('PisoFirme_AEJPol-20070024_individual.dta')
+```
+
+```{r}
+household_X <- household_df
+household_X[is.na(household_X)] <- 0
+
+individual_X <- individual_df
+individual_X[is.na(individual_X)] <- 0
+
+individual_Y <- individual_df
+household_Y <- household_df
+```
+
+```{r}
+dependent_vars1 <- cbind(individual_Y$S_respira, individual_Y$S_skin, individual_Y$S_otherdis, individual_Y$S_malincom, individual_Y$S_palincom)
+
+dependent_vars2 <- cbind(household_Y$S_instcement, household_Y$S_instsanita, household_Y$S_restsanita, household_Y$S_constceili, household_Y$S_restowalls, household_Y$S_improveany, household_Y$S_logrent, household_Y$S_logsell, household_Y$S_consumptionpc)
+```
+
+Model 1
+```{r}
+# first group
+
+ctrl_grp_mean <- c()
+stds <- c()
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model <- lm(dependent_vars1[,i] ~ individual_X$dpisofirme)
+  
+  #first column
+  ctrl_grp_mean <- append(ctrl_grp_mean, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(individual_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <- coeftest(model, vcov=vcovCL, cluster= individual_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model$coefficients[2]
+}
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+```
+
+```{r}
+# second group
+ctrl_grp_mean2 <- c()
+stds2 <- c()
+coefs2 <- c()
+cl_se2  <- c()
+
+for(i in 1:9){
+  #intercept 
+  model <- lm(dependent_vars2[,i] ~ household_X$dpisofirme)
+  
+  #first column
+  ctrl_grp_mean2 <- append(ctrl_grp_mean2, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds2[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(household_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se2[i] <- coeftest(model, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs2[i] <-  model$coefficients[2]
+}
+
+coef_over_mean2 <- 100*(coefs2 / ctrl_grp_mean2)
+```
+
+reordering the values
+```{r}
+reorder <- function(vec1, vec2){
+  vec <- c()
+  vec <- append(vec, vec1[1:3])
+  vec <- append(vec, vec2[1:8])
+  vec <- append(vec, vec1[4:5])
+  vec <- append(vec, vec2[9])
+  
+  return(vec)
+}
+
+ctrl_grp_mean <- reorder(ctrl_grp_mean, ctrl_grp_mean2)
+stds <- reorder(stds, stds2)
+coefs <- reorder(coefs, coefs2)
+cl_se <- reorder(cl_se, cl_se2)
+coef_over_mean <- reorder(coef_over_mean, coef_over_mean2)
+```
+
+Model 2
+```{r}
+# first group
+
+ctrl_grp_mean <- c()
+stds <- c()
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model <- lm(dependent_vars1[,i] ~ individual_X$dpisofirme + individual_X$S_HHpeople
+              + individual_X$S_rooms + individual_X$S_age + individual_X$S_gender 
+              + individual_X$S_childma + individual_X$S_childmaage 
+              + individual_X$S_childmaeduc + individual_X$S_childpa 
+              + individual_X$S_childpaage + individual_X$S_childpaeduc 
+              + individual_X$S_waterland + individual_X$S_waterhouse 
+              + individual_X$S_electricity + individual_X$S_hasanimals 
+              + individual_X$S_animalsinside + individual_X$S_garbage + individual_X$S_washhands)
+  
+  #first column
+  ctrl_grp_mean <- append(ctrl_grp_mean, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(individual_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <- coeftest(model, vcov=vcovCL, cluster= individual_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model$coefficients[2]
+}
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+```
+
+```{r}
+# second group
+ctrl_grp_mean2 <- c()
+stds2 <- c()
+coefs2 <- c()
+cl_se2  <- c()
+
+for(i in 1:9){
+  #intercept 
+  model <- lm(dependent_vars2[,i] ~ household_X$dpisofirme + household_X$S_HHpeople 
+              + household_X$S_headage + household_X$S_spouseage 
+              + household_X$S_headeduc + household_X$S_spouseeduc 
+              + household_X$S_dem1 + household_X$S_dem2 + household_X$S_dem3 
+              + household_X$S_dem4 + household_X$S_dem5 + household_X$S_dem6 
+              + household_X$S_dem7 + household_X$S_dem8 + household_X$S_waterland 
+              + household_X$S_waterhouse + household_X$S_electricity 
+              + household_X$S_hasanimals + household_X$S_animalsinside 
+              + household_X$S_garbage + household_X$S_washhands)
+  
+  #first column
+  ctrl_grp_mean2 <- append(ctrl_grp_mean2, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds2[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(household_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se2[i] <- coeftest(model, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs2[i] <-  model$coefficients[2]
+}
+
+coef_over_mean2 <- 100*(coefs2 / ctrl_grp_mean2)
+```
+
+reordering the values
+```{r}
+reorder <- function(vec1, vec2){
+  vec <- c()
+  vec <- append(vec, vec1[1:3])
+  vec <- append(vec, vec2[1:8])
+  vec <- append(vec, vec1[4:5])
+  vec <- append(vec, vec2[9])
+  
+  return(vec)
+}
+
+ctrl_grp_mean <- reorder(ctrl_grp_mean, ctrl_grp_mean2)
+stds <- reorder(stds, stds2)
+coefs <- reorder(coefs, coefs2)
+cl_se <- reorder(cl_se, cl_se2)
+coef_over_mean <- reorder(coef_over_mean, coef_over_mean2)
+```
+
+Model 3
+```{r}
+# first group
+
+ctrl_grp_mean <- c()
+stds <- c()
+coefs <- c()
+cl_se <- c()
+
+for(i in 1:5){
+  #intercept 
+  model <- lm(dependent_vars1[,i] ~ individual_X$dpisofirme + individual_X$S_HHpeople 
+              + individual_X$S_rooms + individual_X$S_age + individual_X$S_gender 
+              + individual_X$S_childma + individual_X$S_childmaage 
+              + individual_X$S_childmaeduc + individual_X$S_childpa 
+              + individual_X$S_childpaage + individual_X$S_childpaeduc 
+              + individual_X$S_waterland + individual_X$S_waterhouse 
+              + individual_X$S_electricity + individual_X$S_hasanimals 
+              + individual_X$S_animalsinside + individual_X$S_garbage 
+              + individual_X$S_washhands + individual_X$S_cashtransfers 
+              + individual_X$S_milkprogram + individual_X$S_foodprogram 
+              + individual_X$S_seguropopular)
+  
+  #first column
+  ctrl_grp_mean <- append(ctrl_grp_mean, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(individual_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se[i] <- coeftest(model, vcov=vcovCL, cluster= individual_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs[i] <-  model$coefficients[2]
+}
+
+coef_over_mean <- 100*(coefs / ctrl_grp_mean)
+```
+
+```{r}
+# second group
+ctrl_grp_mean2 <- c()
+stds2 <- c()
+coefs2 <- c()
+cl_se2  <- c()
+
+for(i in 1:9){
+  #intercept 
+  model <- lm(dependent_vars2[,i] ~ household_X$dpisofirme + household_X$S_HHpeople 
+              + household_X$S_headage + household_X$S_spouseage 
+              + household_X$S_headeduc + household_X$S_spouseeduc 
+              + household_X$S_dem1 + household_X$S_dem2 + household_X$S_dem3 
+              + household_X$S_dem4 + household_X$S_dem5 + household_X$S_dem6 
+              + household_X$S_dem7 + household_X$S_dem8 + household_X$S_waterland 
+              + household_X$S_waterhouse + household_X$S_electricity + household_X$S_hasanimals 
+              + household_X$S_animalsinside + household_X$S_garbage 
+              + household_X$S_washhands + household_X$S_cashtransfers + household_X$S_milkprogram 
+              + household_X$S_foodprogram + household_X$S_seguropopular)
+  
+  #first column
+  ctrl_grp_mean2 <- append(ctrl_grp_mean2, summary(model)$coefficients[1,1])
+  
+  #second value in first column 
+  stds2[i] <- summary(model)$coefficients[1,2] * sqrt(nrow(household_X))
+  
+
+  #clustered standard error 
+  #value in the brackets 
+  cl_se2[i] <- coeftest(model, vcov=vcovCL, cluster= household_X$idcluster)[2,2]
+
+  #coefficient for dpisofirme 
+  coefs2[i] <-  model$coefficients[2]
+}
+
+coef_over_mean2 <- 100*(coefs2 / ctrl_grp_mean2)
+```
+
+reordering the values
+```{r}
+reorder <- function(vec1, vec2){
+  vec <- c()
+  vec <- append(vec, vec1[1:3])
+  vec <- append(vec, vec2[1:8])
+  vec <- append(vec, vec1[4:5])
+  vec <- append(vec, vec2[9])
+  
+  return(vec)
+}
+
+ctrl_grp_mean <- reorder(ctrl_grp_mean, ctrl_grp_mean2)
+stds <- reorder(stds, stds2)
+coefs <- reorder(coefs, coefs2)
+cl_se <- reorder(cl_se, cl_se2)
+coef_over_mean <- reorder(coef_over_mean, coef_over_mean2)
+```
